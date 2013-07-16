@@ -56,6 +56,13 @@ namespace pcl
     * planes with more than min_inliers points are detected.
     * Templated on point type, normal type, and label type
     *
+    * \note If you use this code in any academic work, please cite:
+    *
+    *   - A. Trevor, S. Gedikli, R. Rusu, H. Christensen.
+    *     Efficient Organized Point Cloud Segmentation with Connected Components.
+    *     3rd Workshop on Semantic Perception, Mapping and Exploration (SPME)
+    *     Karlsruhe, Germany, May 5th, 2013.
+    *
     * \author Alex Trevor, Suat Gedikli
     */
   template<typename PointT, typename PointNT, typename PointLT>
