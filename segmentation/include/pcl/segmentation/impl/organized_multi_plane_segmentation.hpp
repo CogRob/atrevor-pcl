@@ -67,6 +67,33 @@ projectToPlaneFromViewpoint (pcl::PointCloud<PointT>& cloud, Eigen::Vector4f& no
   return (projected_cloud);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointT> void
+removeDuplicatePoints (pcl::PointCloud<PointT>& boundary_cloud)
+{
+  for (size_t i = 1; i < boundary_cloud.points.size ()-1; i++)
+  {
+    for (size_t j = i+1; j < boundary_cloud.points.size ()-1; j++)
+    {
+      if ((boundary_cloud.points[i].x == boundary_cloud.points[j].x) && (boundary_cloud.points[i].y == boundary_cloud.points[j].y))
+      {
+        if(j-i > (boundary_cloud.points.size ()/2.0))
+        {
+          boundary_cloud.points.erase (boundary_cloud.points.begin ()+j, boundary_cloud.points.end ());
+          boundary_cloud.points.erase (boundary_cloud.points.begin (), boundary_cloud.points.begin ()+i);
+          i = 1;
+          j = i+1;
+        }
+        else {
+          boundary_cloud.points.erase (boundary_cloud.points.begin ()+i,boundary_cloud.points.begin ()+j);
+          i = 1;
+          j = i+1;
+        }
+      }
+    }
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename PointT, typename PointNT, typename PointLT> void
 pcl::OrganizedMultiPlaneSegmentation<PointT, PointNT, PointLT>::segment (std::vector<ModelCoefficients>& model_coefficients, 
@@ -212,11 +239,22 @@ pcl::OrganizedMultiPlaneSegmentation<PointT, PointNT, PointLT>::segment (std::ve
                                              model_coefficients[i].values[1],
                                              model_coefficients[i].values[2],
                                              model_coefficients[i].values[3]);
+
+    Eigen::Vector3f vp (0.0, 0.0, 0.0);
+    if (project_points_)
+      boundary_cloud = projectToPlaneFromViewpoint (boundary_cloud, model, centroid, vp);    
+
+    if (remove_duplicate_points_)
+    {
+      removeDuplicatePoints (boundary_cloud);
+    }
+
     regions[i] = PlanarRegion<PointT> (centroid,
                                        covariances[i], 
                                        static_cast<unsigned int> (inlier_indices[i].indices.size ()),
                                        boundary_cloud.points,
                                        model);
+
   }
 }
 
@@ -256,6 +294,11 @@ pcl::OrganizedMultiPlaneSegmentation<PointT, PointNT, PointLT>::segmentAndRefine
     if (project_points_)
       boundary_cloud = projectToPlaneFromViewpoint (boundary_cloud, model, centroid, vp);
 
+    if (remove_duplicate_points_)
+    {
+      removeDuplicatePoints (boundary_cloud);
+    }
+    
     regions[i] = PlanarRegion<PointT> (centroid,
                                        covariances[i], 
                                        static_cast<unsigned int> (inlier_indices[i].indices.size ()),
@@ -299,6 +342,11 @@ pcl::OrganizedMultiPlaneSegmentation<PointT, PointNT, PointLT>::segmentAndRefine
     Eigen::Vector3f vp (0.0, 0.0, 0.0);
     if (project_points_ && boundary_cloud.points.size () > 0)
       boundary_cloud = projectToPlaneFromViewpoint (boundary_cloud, model, centroid, vp);
+
+    if (remove_duplicate_points_)
+    {
+      removeDuplicatePoints (boundary_cloud);
+    }
 
     regions[i] = PlanarRegion<PointT> (centroid,
                                        covariances[i], 

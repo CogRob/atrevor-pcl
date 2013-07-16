@@ -95,6 +95,7 @@ namespace pcl
         distance_threshold_ (0.02),
         maximum_curvature_ (0.001),
         project_points_ (false), 
+        remove_duplicate_points_ (false),
         compare_ (new PlaneComparator ()), refinement_compare_ (new PlaneRefinementComparator ())
       {
       }
@@ -212,6 +213,15 @@ namespace pcl
         project_points_ = project_points;
       }
 
+      /** \brief Set whether or not to project boundary points to the plane, or leave them in the original 3D space.
+        * \param[in] project_points true if points should be projected, false if not.
+        */
+      void
+      setRemoveDuplicatePoints (bool remove_duplicate_points)
+      {
+        remove_duplicate_points_ = remove_duplicate_points;
+      }
+
       /** \brief Segmentation of all planes in a point cloud given by setInputCloud(), setIndices()
         * \param[out] model_coefficients a vector of model_coefficients for each plane found in the input cloud
         * \param[out] inlier_indices a vector of inliers for each detected plane
@@ -300,6 +310,9 @@ namespace pcl
 
       /** \brief Whether or not points should be projected to the plane, or left in the original 3D space. */
       bool project_points_;
+
+      /** \brief Whether or not to remove duplicate points from the planar boundaries. */
+      bool remove_duplicate_points_;
 
       /** \brief A comparator for comparing neighboring pixels' plane equations. */
       PlaneComparatorPtr compare_;
