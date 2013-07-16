@@ -53,6 +53,13 @@ namespace pcl
     * id, along with a vector of PointIndices corresponding to each component.
     * See OrganizedMultiPlaneSegmentation for an example application.
     *
+    * \note If you use this code in any academic work, please cite:
+    *
+    *   - A. Trevor, S. Gedikli, R. Rusu, H. Christensen.
+    *     Efficient Organized Point Cloud Segmentation with Connected Components.
+    *     3rd Workshop on Semantic Perception, Mapping and Exploration (SPME)
+    *     Karlsruhe, Germany, May 5th, 2013.
+    *
     * \author Alex Trevor, Suat Gedikli
     */
   template <typename PointT, typename PointLT>
