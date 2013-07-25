@@ -109,7 +109,7 @@ endif()
 
 if(MSVC)
   SET(CMAKE_COMPILER_IS_MSVC 1)
-  add_definitions ("-DBOOST_ALL_NO_LIB -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS -DNOMINMAX")
+  add_definitions ("-DBOOST_ALL_NO_LIB -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS -DNOMINMAX /bigobj")
   if("${CMAKE_CXX_FLAGS}" STREQUAL "")
     SET(CMAKE_CXX_FLAGS "/bigobj /EHsc /fp:precise /wd4800 /wd4521 /wd4251 /wd4275 /wd4305 /wd4355 ${SSE_FLAGS}")
 
@@ -276,8 +276,6 @@ find_package(Qhull)
 # Cuda
 include(${PCL_SOURCE_DIR}/cmake/pcl_find_cuda.cmake)
 
-# Find ROS
-include(${PCL_SOURCE_DIR}/cmake/pcl_find_ros.cmake)
 # Find QT4
 find_package(Qt4)
 if (QT4_FOUND)

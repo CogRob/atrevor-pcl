@@ -37,7 +37,7 @@
  */
 
 #include <pcl/visualization/common/common.h>
-#include <pcl/ros/conversions.h>
+#include <pcl/conversions.h>
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
 #include <vtkCellData.h>
@@ -119,7 +119,6 @@ pcl::visualization::PCLVisualizer::PCLVisualizer (const std::string &name, const
   update_fps_->pcl_visualizer = this;
   update_fps_->decimated = false;
   ren->AddActor (txt);
-
 
   // Create a RendererWindow
   win_ = vtkSmartPointer<vtkRenderWindow>::New ();
@@ -256,8 +255,9 @@ pcl::visualization::PCLVisualizer::createInteractor ()
   timer_id_ = interactor_->CreateRepeatingTimer (5000L);
 #endif
 
-  // Set an AreaPicker
-  vtkSmartPointer<vtkAreaPicker> pp = vtkSmartPointer<vtkAreaPicker>::New ();
+  // Set a simple PointPicker
+  vtkSmartPointer<vtkPointPicker> pp = vtkSmartPointer<vtkPointPicker>::New ();
+  pp->SetTolerance (pp->GetTolerance () * 2);
   interactor_->SetPicker (pp);
 
   exit_main_loop_timer_callback_ = vtkSmartPointer<ExitMainLoopTimerCallback>::New ();
@@ -297,12 +297,10 @@ pcl::visualization::PCLVisualizer::setupInteractor (
   timer_id_ = iren->CreateRepeatingTimer (5000L);
 #endif
 
-  // Set an AreaPicker
-  if (interactor_ != NULL)
-  {
-    vtkSmartPointer<vtkAreaPicker> pp = vtkSmartPointer<vtkAreaPicker>::New ();
-    interactor_->SetPicker (pp);
-  }
+  // Set a simple PointPicker
+  vtkSmartPointer<vtkPointPicker> pp = vtkSmartPointer<vtkPointPicker>::New ();
+  pp->SetTolerance (pp->GetTolerance () * 2);
+  iren->SetPicker (pp);
 
   exit_main_loop_timer_callback_ = vtkSmartPointer<ExitMainLoopTimerCallback>::New ();
   exit_main_loop_timer_callback_->pcl_visualizer = this;
@@ -343,9 +341,10 @@ pcl::visualization::PCLVisualizer::setupInteractor (
   timer_id_ = iren->CreateRepeatingTimer (5000L);
 #endif
 
-  // Set an AreaPicker
-  // vtkSmartPointer<vtkAreaPicker> pp = vtkSmartPointer<vtkAreaPicker>::New ();
-  // interactor_->SetPicker (pp);
+  // Set a simple PointPicker
+  // vtkSmartPointer<vtkPointPicker> pp = vtkSmartPointer<vtkPointPicker>::New ();
+  // pp->SetTolerance (pp->GetTolerance () * 2);
+  // iren->SetPicker (pp);
 
   exit_main_loop_timer_callback_ = vtkSmartPointer<ExitMainLoopTimerCallback>::New ();
   exit_main_loop_timer_callback_->pcl_visualizer = this;
@@ -2743,7 +2742,7 @@ pcl::visualization::PCLVisualizer::updateColorHandlerIndex (const std::string &i
     return (false);
   }
   // Get the handler
-  PointCloudColorHandler<sensor_msgs::PointCloud2>::ConstPtr color_handler = am_it->second.color_handlers[index];
+  PointCloudColorHandler<pcl::PCLPointCloud2>::ConstPtr color_handler = am_it->second.color_handlers[index];
 
   vtkSmartPointer<vtkDataArray> scalars;
   color_handler->getColor (scalars);
@@ -2804,7 +2803,7 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (const pcl::PolygonMesh &poly_
   // Create points from polyMesh.cloud
   vtkSmartPointer<vtkPoints> poly_points = vtkSmartPointer<vtkPoints>::New ();
   pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-  pcl::fromROSMsg (poly_mesh.cloud, *point_cloud);
+  pcl::fromPCLPointCloud2 (poly_mesh.cloud, *point_cloud);
   poly_points->SetNumberOfPoints (point_cloud->points.size ());
 
   size_t i;
@@ -2819,7 +2818,7 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (const pcl::PolygonMesh &poly_
     colors->SetNumberOfComponents (3);
     colors->SetName ("Colors");
     pcl::PointCloud<pcl::PointXYZRGB> cloud;
-    pcl::fromROSMsg(poly_mesh.cloud, cloud);
+    pcl::fromPCLPointCloud2(poly_mesh.cloud, cloud);
     for (i = 0; i < cloud.points.size (); ++i)
     {
       const unsigned char color[3] = {cloud.points[i].r, cloud.points[i].g, cloud.points[i].b};
@@ -2832,7 +2831,7 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (const pcl::PolygonMesh &poly_
     colors->SetNumberOfComponents (3);
     colors->SetName ("Colors");
     pcl::PointCloud<pcl::PointXYZRGBA> cloud;
-    pcl::fromROSMsg(poly_mesh.cloud, cloud);
+    pcl::fromPCLPointCloud2(poly_mesh.cloud, cloud);
     for (i = 0; i < cloud.points.size (); ++i)
     {
       const unsigned char color[3] = {cloud.points[i].r, cloud.points[i].g, cloud.points[i].b};
@@ -2922,7 +2921,7 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
 
   // Create points from polyMesh.cloud
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-  pcl::fromROSMsg (poly_mesh.cloud, *cloud);
+  pcl::fromPCLPointCloud2 (poly_mesh.cloud, *cloud);
 
   std::vector<pcl::Vertices> verts(poly_mesh.polygons); // copy vector
 
@@ -3025,7 +3024,7 @@ pcl::visualization::PCLVisualizer::addPolylineFromPolygonMesh (
   // Create points from polyMesh.cloud
   vtkSmartPointer<vtkPoints> poly_points = vtkSmartPointer<vtkPoints>::New ();
   pcl::PointCloud<pcl::PointXYZ> point_cloud;
-  pcl::fromROSMsg (polymesh.cloud, point_cloud);
+  pcl::fromPCLPointCloud2 (polymesh.cloud, point_cloud);
   poly_points->SetNumberOfPoints (point_cloud.points.size ());
 
   size_t i;
@@ -3841,7 +3840,7 @@ pcl::visualization::PCLVisualizer::convertToEigenMatrix (
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool
 pcl::visualization::PCLVisualizer::addPointCloud (
-    const sensor_msgs::PointCloud2::ConstPtr &,
+    const pcl::PCLPointCloud2::ConstPtr &,
     const GeometryHandlerConstPtr &geometry_handler,
     const ColorHandlerConstPtr &color_handler,
     const Eigen::Vector4f& sensor_origin,
@@ -3864,7 +3863,7 @@ pcl::visualization::PCLVisualizer::addPointCloud (
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool
 pcl::visualization::PCLVisualizer::addPointCloud (
-    const sensor_msgs::PointCloud2::ConstPtr &cloud,
+    const pcl::PCLPointCloud2::ConstPtr &cloud,
     const GeometryHandlerConstPtr &geometry_handler,
     const Eigen::Vector4f& sensor_origin,
     const Eigen::Quaternion<float>& sensor_orientation,
@@ -3881,14 +3880,14 @@ pcl::visualization::PCLVisualizer::addPointCloud (
     return (true);
   }
 
-  PointCloudColorHandlerCustom<sensor_msgs::PointCloud2>::Ptr color_handler (new PointCloudColorHandlerCustom<sensor_msgs::PointCloud2> (cloud, 255, 255, 255));
+  PointCloudColorHandlerCustom<pcl::PCLPointCloud2>::Ptr color_handler (new PointCloudColorHandlerCustom<pcl::PCLPointCloud2> (cloud, 255, 255, 255));
   return (fromHandlersToScreen (geometry_handler, color_handler, id, viewport, sensor_origin, sensor_orientation));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool
 pcl::visualization::PCLVisualizer::addPointCloud (
-    const sensor_msgs::PointCloud2::ConstPtr &cloud,
+    const pcl::PCLPointCloud2::ConstPtr &cloud,
     const ColorHandlerConstPtr &color_handler,
     const Eigen::Vector4f& sensor_origin,
     const Eigen::Quaternion<float>& sensor_orientation,
@@ -3904,7 +3903,7 @@ pcl::visualization::PCLVisualizer::addPointCloud (
     return (true);
   }
 
-  PointCloudGeometryHandlerXYZ<sensor_msgs::PointCloud2>::Ptr geometry_handler (new PointCloudGeometryHandlerXYZ<sensor_msgs::PointCloud2> (cloud));
+  PointCloudGeometryHandlerXYZ<pcl::PCLPointCloud2>::Ptr geometry_handler (new PointCloudGeometryHandlerXYZ<pcl::PCLPointCloud2> (cloud));
   return (fromHandlersToScreen (geometry_handler, color_handler, id, viewport, sensor_origin, sensor_orientation));
 }
 

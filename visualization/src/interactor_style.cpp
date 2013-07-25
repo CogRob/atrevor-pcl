@@ -59,6 +59,9 @@
 #include <vtkProperty.h>
 #include <vtkPointData.h>
 #include <vtkAssemblyPath.h>
+#include <vtkAbstractPicker.h>
+#include <vtkPointPicker.h>
+#include <vtkAreaPicker.h>
 
 #include <pcl/visualization/vtk/vtkVertexBufferObjectMapper.h>
 
@@ -328,7 +331,7 @@ pcl::visualization::PCLVisualizerInteractorStyle::OnKeyDown ()
         act->geometry_handler_index_ = index;
 
         // Create the new geometry
-        PointCloudGeometryHandler<sensor_msgs::PointCloud2>::ConstPtr geometry_handler = act->geometry_handlers[index];
+        PointCloudGeometryHandler<pcl::PCLPointCloud2>::ConstPtr geometry_handler = act->geometry_handlers[index];
 
         // Use the handler to obtain the geometry
         vtkSmartPointer<vtkPoints> points;
@@ -374,7 +377,7 @@ pcl::visualization::PCLVisualizerInteractorStyle::OnKeyDown ()
         act->color_handler_index_ = index;
 
         // Get the new color
-        PointCloudColorHandler<sensor_msgs::PointCloud2>::ConstPtr color_handler = act->color_handlers[index];
+        PointCloudColorHandler<pcl::PCLPointCloud2>::ConstPtr color_handler = act->color_handlers[index];
 
         vtkSmartPointer<vtkDataArray> scalars;
         color_handler->getColor (scalars);
@@ -806,6 +809,19 @@ pcl::visualization::PCLVisualizerInteractorStyle::OnKeyDown ()
     case 'x' : case 'X' :
     {
       CurrentMode = (CurrentMode == ORIENT_MODE) ? SELECT_MODE : ORIENT_MODE;
+      if (CurrentMode == SELECT_MODE)
+      {
+        // Save the point picker
+        point_picker_ = static_cast<vtkPointPicker*> (Interactor->GetPicker ());
+        // Switch for an area picker
+        vtkSmartPointer<vtkAreaPicker> area_picker = vtkSmartPointer<vtkAreaPicker>::New ();
+        Interactor->SetPicker (area_picker);
+      }
+      else
+      {
+        // Restore point picker
+        Interactor->SetPicker (point_picker_);
+      }
       break;
     }
 
