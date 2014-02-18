@@ -45,10 +45,15 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/registration/registration.h>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/joint_icp.h>
 #include <pcl/registration/icp_nl.h>
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/transformation_estimation_point_to_plane.h>
 #include <pcl/registration/transformation_validation_euclidean.h>
+#include <pcl/registration/correspondence_rejection_median_distance.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
+#include <pcl/registration/correspondence_rejection_surface_normal.h>
+#include <pcl/registration/correspondence_estimation_normal_shooting.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/registration/pyramid_feature_matching.h>
 #include <pcl/features/ppf.h>
@@ -192,6 +197,126 @@ TEST (PCL, IterativeClosestPoint)
 //  EXPECT_EQ (transformation (3, 3), 1);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+sampleRandomTransform (Eigen::Affine3f &trans, float max_angle, float max_trans)
+{
+    // Sample random transform
+    Eigen::Vector3f axis((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX);
+    axis.normalize();
+    float angle = (float)rand() / RAND_MAX * max_angle;
+    Eigen::Vector3f translation((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX);
+    translation *= max_trans;
+    Eigen::Affine3f rotation(Eigen::AngleAxis<float>(angle, axis));
+    trans = Eigen::Translation3f(translation) * rotation;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+TEST (PCL, IterativeClosestPointWithRejectors)
+{
+  IterativeClosestPoint<PointXYZ, PointXYZ> reg;
+  reg.setMaximumIterations (50);
+  reg.setTransformationEpsilon (1e-8);
+  reg.setMaxCorrespondenceDistance (0.15);
+  // Add a median distance rejector
+  pcl::registration::CorrespondenceRejectorMedianDistance::Ptr rej_med (new pcl::registration::CorrespondenceRejectorMedianDistance);
+  rej_med->setMedianFactor (4.0);
+  reg.addCorrespondenceRejector (rej_med);
+  // Also add a SaC rejector
+  pcl::registration::CorrespondenceRejectorSampleConsensus<PointXYZ>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointXYZ>);
+  reg.addCorrespondenceRejector (rej_samp);
+
+  size_t ntransforms = 10;
+  for (size_t t = 0; t < ntransforms; t++)
+  {
+    // Sample a fixed offset between cloud pairs
+    Eigen::Affine3f delta_transform;
+    sampleRandomTransform (delta_transform, 0., 0.05);
+    // Sample random global transform for each pair, to make sure we aren't biased around the origin
+    Eigen::Affine3f net_transform;    
+    sampleRandomTransform (net_transform, 2*M_PI, 10.);
+      
+    PointCloud<PointXYZ>::ConstPtr source (cloud_source.makeShared ());
+    PointCloud<PointXYZ>::Ptr source_trans (new PointCloud<PointXYZ>);
+    PointCloud<PointXYZ>::Ptr target_trans (new PointCloud<PointXYZ>);
+      
+    pcl::transformPointCloud (*source, *source_trans, delta_transform.inverse () * net_transform);
+    pcl::transformPointCloud (*source, *target_trans, net_transform);
+
+    reg.setInputSource (source_trans);
+    reg.setInputTarget (target_trans);
+    
+    // Register
+    reg.align (cloud_reg);
+    Eigen::Matrix4f trans_final = reg.getFinalTransformation ();
+    // Translation should be within 1cm
+    for (int y = 0; y < 4; y++)
+      EXPECT_NEAR (trans_final (y, 3), delta_transform (y, 3), 1E-2);
+    // Rotation within .1
+    for (int y = 0; y < 4; y++)
+      for (int x = 0; x < 3; x++)
+        EXPECT_NEAR (trans_final (y, x), delta_transform (y, x), 1E-1);
+
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+TEST (PCL, JointIterativeClosestPoint)
+{
+  // Set up
+  JointIterativeClosestPoint<PointXYZ, PointXYZ> reg;
+  reg.setMaximumIterations (50);
+  reg.setTransformationEpsilon (1e-8);
+  reg.setMaxCorrespondenceDistance (0.25); // Making sure the correspondence distance > the max translation
+  // Add a median distance rejector
+  pcl::registration::CorrespondenceRejectorMedianDistance::Ptr rej_med (new pcl::registration::CorrespondenceRejectorMedianDistance);
+  rej_med->setMedianFactor (4.0);
+  reg.addCorrespondenceRejector (rej_med);
+  // Also add a SaC rejector
+  pcl::registration::CorrespondenceRejectorSampleConsensus<PointXYZ>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointXYZ>);
+  reg.addCorrespondenceRejector (rej_samp);
+
+  size_t ntransforms = 10;
+  for (size_t t = 0; t < ntransforms; t++)
+  {
+    
+    // Sample a fixed offset between cloud pairs
+    Eigen::Affine3f delta_transform;
+    // No rotation, since at a random offset this could make it converge to a wrong (but still reasonable) result
+    sampleRandomTransform (delta_transform, 0., 0.10);
+    // Make a few transformed versions of the data, plus noise
+    size_t nclouds = 5;
+    for (size_t i = 0; i < nclouds; i++)
+    {
+      PointCloud<PointXYZ>::ConstPtr source (cloud_source.makeShared ());
+      // Sample random global transform for each pair
+      Eigen::Affine3f net_transform;
+      sampleRandomTransform (net_transform, 2*M_PI, 10.);
+      // And apply it to the source and target
+      PointCloud<PointXYZ>::Ptr source_trans (new PointCloud<PointXYZ>);
+      PointCloud<PointXYZ>::Ptr target_trans (new PointCloud<PointXYZ>);
+      pcl::transformPointCloud (*source, *source_trans, delta_transform.inverse () * net_transform);
+      pcl::transformPointCloud (*source, *target_trans, net_transform);
+      // Add these to the joint solver
+      reg.addInputSource (source_trans);
+      reg.addInputTarget (target_trans);
+
+    }
+
+    // Register
+    reg.align (cloud_reg);
+    Eigen::Matrix4f trans_final = reg.getFinalTransformation ();
+    for (int y = 0; y < 4; y++)
+      for (int x = 0; x < 4; x++)
+        EXPECT_NEAR (trans_final (y, x), delta_transform (y, x), 1E-2);
+
+    EXPECT_TRUE (cloud_reg.empty ()); // By definition, returns an empty cloud
+    // Clear
+    reg.clearInputSources ();
+    reg.clearInputTargets ();
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 TEST (PCL, IterativeClosestPointNonLinear)
 {
@@ -287,11 +412,18 @@ TEST (PCL, IterativeClosestPoint_PointToPlane)
   reg.setInputTarget (tgt);
   reg.setMaximumIterations (50);
   reg.setTransformationEpsilon (1e-8);
+  // Use a correspondence estimator which needs normals
+  registration::CorrespondenceEstimationNormalShooting<PointT, PointT, PointT>::Ptr ce (new registration::CorrespondenceEstimationNormalShooting<PointT, PointT, PointT>);
+  reg.setCorrespondenceEstimation (ce);
+  // Add rejector
+  registration::CorrespondenceRejectorSurfaceNormal::Ptr rej (new registration::CorrespondenceRejectorSurfaceNormal);
+  rej->setThreshold (0); //Could be a lot of rotation -- just make sure they're at least within 0 degrees
+  reg.addCorrespondenceRejector (rej);
 
   // Register
   reg.align (output);
   EXPECT_EQ (int (output.points.size ()), int (cloud_source.points.size ()));
-  EXPECT_LT (reg.getFitnessScore (), 0.001);
+  EXPECT_LT (reg.getFitnessScore (), 0.005);
 
   // Check again, for all possible caching schemes
   for (int iter = 0; iter < 4; iter++)
@@ -312,7 +444,7 @@ TEST (PCL, IterativeClosestPoint_PointToPlane)
     // Register
     reg.align (output);
     EXPECT_EQ (int (output.points.size ()), int (cloud_source.points.size ()));
-    EXPECT_LT (reg.getFitnessScore (), 0.001);
+    EXPECT_LT (reg.getFitnessScore (), 0.005);
   }
   
 
@@ -548,7 +680,7 @@ TEST (PCL, SampleConsensusPrerejective)
   // Normal estimator
   NormalEstimation<PointXYZ, Normal> norm_est;
   norm_est.setSearchMethod (tree);
-  norm_est.setRadiusSearch (0.05);
+  norm_est.setRadiusSearch (0.005);
   PointCloud<Normal> normals;
 
   // FPFH estimator

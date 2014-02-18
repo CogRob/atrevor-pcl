@@ -72,6 +72,7 @@
   (pcl::PFHSignature125)        \
   (pcl::PFHRGBSignature250)     \
   (pcl::PPFSignature)           \
+  (pcl::CPPFSignature)          \
   (pcl::PPFRGBSignature)        \
   (pcl::NormalBasedSignature12) \
   (pcl::FPFHSignature33)        \
@@ -132,6 +133,7 @@
   (pcl::PFHSignature125)        \
   (pcl::PFHRGBSignature250)     \
   (pcl::PPFSignature)           \
+  (pcl::CPPFSignature)          \
   (pcl::PPFRGBSignature)        \
   (pcl::NormalBasedSignature12) \
   (pcl::FPFHSignature33)        \
@@ -143,7 +145,7 @@
 namespace pcl
 {
 
-#define PCL_ADD_POINT4D \
+#define PCL_ADD_UNION_POINT4D \
   union EIGEN_ALIGN16 { \
     float data[4]; \
     struct { \
@@ -151,7 +153,9 @@ namespace pcl
       float y; \
       float z; \
     }; \
-  }; \
+  };
+
+#define PCL_ADD_EIGEN_MAPS_POINT4D \
   inline Eigen::Map<Eigen::Vector3f> getVector3fMap () { return (Eigen::Vector3f::Map (data)); } \
   inline const Eigen::Map<const Eigen::Vector3f> getVector3fMap () const { return (Eigen::Vector3f::Map (data)); } \
   inline Eigen::Map<Eigen::Vector4f, Eigen::Aligned> getVector4fMap () { return (Eigen::Vector4f::MapAligned (data)); } \
@@ -161,7 +165,11 @@ namespace pcl
   inline Eigen::Map<Eigen::Array4f, Eigen::Aligned> getArray4fMap () { return (Eigen::Array4f::MapAligned (data)); } \
   inline const Eigen::Map<const Eigen::Array4f, Eigen::Aligned> getArray4fMap () const { return (Eigen::Array4f::MapAligned (data)); }
 
-#define PCL_ADD_NORMAL4D \
+#define PCL_ADD_POINT4D \
+  PCL_ADD_UNION_POINT4D \
+  PCL_ADD_EIGEN_MAPS_POINT4D
+
+#define PCL_ADD_UNION_NORMAL4D \
   union EIGEN_ALIGN16 { \
     float data_n[4]; \
     float normal[3]; \
@@ -170,13 +178,19 @@ namespace pcl
       float normal_y; \
       float normal_z; \
     }; \
-  }; \
+  };
+
+#define PCL_ADD_EIGEN_MAPS_NORMAL4D \
   inline Eigen::Map<Eigen::Vector3f> getNormalVector3fMap () { return (Eigen::Vector3f::Map (data_n)); } \
   inline const Eigen::Map<const Eigen::Vector3f> getNormalVector3fMap () const { return (Eigen::Vector3f::Map (data_n)); } \
   inline Eigen::Map<Eigen::Vector4f, Eigen::Aligned> getNormalVector4fMap () { return (Eigen::Vector4f::MapAligned (data_n)); } \
   inline const Eigen::Map<const Eigen::Vector4f, Eigen::Aligned> getNormalVector4fMap () const { return (Eigen::Vector4f::MapAligned (data_n)); }
 
-#define PCL_ADD_RGB \
+#define PCL_ADD_NORMAL4D \
+  PCL_ADD_UNION_NORMAL4D \
+  PCL_ADD_EIGEN_MAPS_NORMAL4D
+
+#define PCL_ADD_UNION_RGB \
   union \
   { \
     union \
@@ -192,6 +206,22 @@ namespace pcl
     }; \
     uint32_t rgba; \
   };
+
+#define PCL_ADD_EIGEN_MAPS_RGB \
+  inline Eigen::Vector3i getRGBVector3i () { return (Eigen::Vector3i (r, g, b)); } \
+  inline const Eigen::Vector3i getRGBVector3i () const { return (Eigen::Vector3i (r, g, b)); } \
+  inline Eigen::Vector4i getRGBVector4i () { return (Eigen::Vector4i (r, g, b, a)); } \
+  inline const Eigen::Vector4i getRGBVector4i () const { return (Eigen::Vector4i (r, g, b, a)); } \
+  inline Eigen::Vector4i getRGBAVector4i () { return (Eigen::Vector4i (r, g, b, a)); } \
+  inline const Eigen::Vector4i getRGBAVector4i () const { return (Eigen::Vector4i (r, g, b, a)); } \
+  inline Vector3cMap getBGRVector3cMap () { return (Vector3cMap (reinterpret_cast<uint8_t*> (&rgba))); } \
+  inline Vector3cMapConst getBGRVector3cMap () const { return (Vector3cMapConst (reinterpret_cast<const uint8_t*> (&rgba))); } \
+  inline Vector4cMap getBGRAVector4cMap () { return (Vector4cMap (reinterpret_cast<uint8_t*> (&rgba))); } \
+  inline Vector4cMapConst getBGRAVector4cMap () const { return (Vector4cMapConst (reinterpret_cast<const uint8_t*> (&rgba))); }
+
+#define PCL_ADD_RGB \
+  PCL_ADD_UNION_RGB \
+  PCL_ADD_EIGEN_MAPS_RGB
 
 #define PCL_ADD_INTENSITY \
     struct \
@@ -219,6 +249,13 @@ namespace pcl
   typedef const Eigen::Map<const Eigen::Vector3f> Vector3fMapConst;
   typedef Eigen::Map<Eigen::Vector4f, Eigen::Aligned> Vector4fMap;
   typedef const Eigen::Map<const Eigen::Vector4f, Eigen::Aligned> Vector4fMapConst;
+
+  typedef Eigen::Matrix<uint8_t, 3, 1> Vector3c;
+  typedef Eigen::Map<Vector3c> Vector3cMap;
+  typedef const Eigen::Map<const Vector3c> Vector3cMapConst;
+  typedef Eigen::Matrix<uint8_t, 4, 1> Vector4c;
+  typedef Eigen::Map<Vector4c, Eigen::Aligned> Vector4cMap;
+  typedef const Eigen::Map<const Vector4c, Eigen::Aligned> Vector4cMapConst;
 
 
   struct _PointXYZ
@@ -348,6 +385,13 @@ namespace pcl
       intensity = 0;
     }
   
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 1101
+    operator unsigned char() const
+    {
+      return intensity;
+    }
+#endif
+
     friend std::ostream& operator << (std::ostream& os, const Intensity8u& p);
   };
 
@@ -494,19 +538,10 @@ namespace pcl
     {
       x = y = z = 0.0f;
       data[3] = 1.0f;
-      r = g = b = a = 0;
+      r = g = b = 0;
+      a = 255;
     }
-    inline Eigen::Vector3i getRGBVector3i ()
-    {
-      return (Eigen::Vector3i (r, g, b));
-    }
-    inline const Eigen::Vector3i getRGBVector3i () const { return (Eigen::Vector3i (r, g, b)); }
-    inline Eigen::Vector4i getRGBVector4i ()
-    {
-      return (Eigen::Vector4i (r, g, b, a));
-    }
-    inline const Eigen::Vector4i getRGBVector4i () const { return (Eigen::Vector4i (r, g, b, a)); }
-  
+
     friend std::ostream& operator << (std::ostream& os, const PointXYZRGBA& p);
   };
 
@@ -582,18 +617,6 @@ namespace pcl
       a = 0;
     }
 
-    inline Eigen::Vector3i getRGBVector3i ()
-    {
-      return (Eigen::Vector3i (r, g, b));
-    }
-    inline const Eigen::Vector3i getRGBVector3i () const { return (Eigen::Vector3i (r, g, b)); }
-    inline Eigen::Vector4i getRGBVector4i ()
-    {
-      return (Eigen::Vector4i (r, g, b, a));
-    }
-    inline const Eigen::Vector4i getRGBVector4i () const { return (Eigen::Vector4i (r, g, b, a)); }
-
-  
     friend std::ostream& operator << (std::ostream& os, const PointXYZRGB& p);
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
@@ -849,23 +872,12 @@ namespace pcl
     {
       struct
       {
-        // RGB union
-        union
-        {
-          struct
-          {
-            uint8_t b;
-            uint8_t g;
-            uint8_t r;
-            uint8_t a;
-          };
-          float rgb;
-          uint32_t rgba;
-        };
+        PCL_ADD_UNION_RGB;
         float curvature;
       };
       float data_c[4];
     };
+    PCL_ADD_EIGEN_MAPS_RGB;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 
@@ -918,17 +930,6 @@ namespace pcl
       curvature = 0;
     }
 
-    inline Eigen::Vector3i getRGBVector3i ()
-    {
-      return (Eigen::Vector3i (r, g, b));
-    }
-    inline const Eigen::Vector3i getRGBVector3i () const { return (Eigen::Vector3i (r, g, b)); }
-    inline Eigen::Vector4i getRGBVector4i ()
-    {
-      return (Eigen::Vector4i (r, g, b, a));
-    }
-    inline const Eigen::Vector4i getRGBVector4i () const { return (Eigen::Vector4i (r, g, b, a)); }
-  
     friend std::ostream& operator << (std::ostream& os, const PointXYZRGBNormal& p);
   };
 
@@ -1079,6 +1080,13 @@ namespace pcl
   struct Boundary
   {
     uint8_t boundary_point;
+
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 1101
+    operator unsigned char() const
+    {
+      return boundary_point;
+    }
+#endif
   
     friend std::ostream& operator << (std::ostream& os, const Boundary& p);
   };
@@ -1137,6 +1145,18 @@ namespace pcl
     float alpha_m;
   
     friend std::ostream& operator << (std::ostream& os, const PPFSignature& p);
+  };
+
+  PCL_EXPORTS std::ostream& operator << (std::ostream& os, const CPPFSignature& p);
+  /** \brief A point structure for storing the Point Pair Feature (CPPF) values
+    * \ingroup common
+    */
+  struct CPPFSignature
+  {
+    float f1, f2, f3, f4, f5, f6, f7, f8, f9, f10;
+    float alpha_m;
+  
+    friend std::ostream& operator << (std::ostream& os, const CPPFSignature& p);
   };
 
   PCL_EXPORTS std::ostream& operator << (std::ostream& os, const PPFRGBSignature& p);
@@ -1446,25 +1466,14 @@ namespace pcl
     {
       struct
       {
-        // RGB union
-        union
-        {
-          struct
-          {
-            uint8_t b;
-            uint8_t g;
-            uint8_t r;
-            uint8_t a;
-          };
-          float rgb;
-          uint32_t rgba;
-        };
+        PCL_ADD_UNION_RGB;
         float radius;
         float confidence;
         float curvature;
       };
       float data_c[4];
     };
+    PCL_ADD_EIGEN_MAPS_RGB;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 

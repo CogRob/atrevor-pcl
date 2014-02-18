@@ -11,6 +11,7 @@
 #include <vtkImageReader2.h>
 #include <vtkImageData.h>
 #include <vtkImageFlip.h>
+#include <vtkPolyLine.h>
 
 // Types
 typedef pcl::PointXYZRGBA PointT;
@@ -214,9 +215,9 @@ main (int argc, char ** argv)
     depth_pixel = static_cast<unsigned short*>(depth_image->GetScalarPointer (depth_dims[0]-1,depth_dims[1]-1,0));
     color_pixel = static_cast<unsigned char*> (rgb_image->GetScalarPointer (depth_dims[0]-1,depth_dims[1]-1,0));
     
-    for (int y=0; y<cloud->height; ++y)
+    for (size_t y=0; y<cloud->height; ++y)
     {
-      for (int x=0; x<cloud->width; ++x, --depth_pixel, color_pixel-=3)
+      for (size_t x=0; x<cloud->width; ++x, --depth_pixel, color_pixel-=3)
       {
         PointT new_point;
         //  uint8_t* p_i = &(cloud_blob->data[y * cloud_blob->row_step + x * cloud_blob->point_step]);
@@ -227,8 +228,8 @@ main (int argc, char ** argv)
         }
         else
         {
-          new_point.x = (static_cast<float>(x - centerX)) * depth * fl_const;
-          new_point.y = (static_cast<float>(centerY - y)) * depth * fl_const; // vtk seems to start at the bottom left image corner
+          new_point.x = (static_cast<float> (x) - centerX) * depth * fl_const;
+          new_point.y = (static_cast<float> (centerY) - y) * depth * fl_const; // vtk seems to start at the bottom left image corner
           new_point.z = depth;
         }
         
@@ -286,10 +287,10 @@ main (int argc, char ** argv)
   super.getSupervoxelAdjacency (label_adjacency);
    
   // THESE ONLY MAKE SENSE FOR ORGANIZED CLOUDS
-  pcl::io::savePNGFile (out_path, *full_colored_cloud);
-  pcl::io::savePNGFile (refined_out_path, *refined_full_colored_cloud);
-  pcl::io::savePNGFile (out_label_path, *full_labeled_cloud);
-  pcl::io::savePNGFile (refined_out_label_path, *refined_full_labeled_cloud);
+  pcl::io::savePNGFile (out_path, *full_colored_cloud, "rgb");
+  pcl::io::savePNGFile (refined_out_path, *refined_full_colored_cloud, "rgb");
+  pcl::io::savePNGFile (out_label_path, *full_labeled_cloud, "label");
+  pcl::io::savePNGFile (refined_out_label_path, *refined_full_labeled_cloud, "label");
   
   std::cout << "Constructing Boost Graph Library Adjacency List...\n";
   typedef boost::adjacency_list<boost::setS, boost::setS, boost::undirectedS, uint32_t, float> VoxelAdjacencyList;

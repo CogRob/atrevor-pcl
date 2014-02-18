@@ -566,7 +566,7 @@ class ObjectSelection
 
       cloud_viewer_->addPointCloud (cloud_, "scene");
       cloud_viewer_->resetCameraViewpoint ("scene");
-      cloud_viewer_->addCoordinateSystem (0.1, 0, 0, 0);
+      cloud_viewer_->addCoordinateSystem (0.1, 0, 0, 0, "global");
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -605,7 +605,7 @@ class ObjectSelection
       {
         w.writeBinaryCompressed (object_file, *object_);
         w.writeBinaryCompressed (plane_file, *plane_);
-        print_highlight ("Object succesfully segmented. Saving results in: %s, and %s.\n", object_file.c_str (), plane_file.c_str ());
+        print_highlight ("Object successfully segmented. Saving results in: %s, and %s.\n", object_file.c_str (), plane_file.c_str ());
       }
     }
 

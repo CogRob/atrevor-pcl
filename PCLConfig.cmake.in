@@ -80,8 +80,9 @@ macro(find_boost)
   endif(PCL_ALL_IN_ONE_INSTALLER)
   # use static Boost in Windows
   if(WIN32)
-    set(Boost_USE_STATIC_LIBS ON)
-    set(Boost_USE_STATIC ON)
+    set(Boost_USE_STATIC_LIBS @Boost_USE_STATIC_LIBS@)
+    set(Boost_USE_STATIC @Boost_USE_STATIC@)
+    set(Boost_USE_MULTITHREAD @Boost_USE_MULTITHREAD@)
   endif(WIN32)
   if(${CMAKE_VERSION} VERSION_LESS 2.8.5)
     SET(Boost_ADDITIONAL_VERSIONS "1.43" "1.43.0" "1.44" "1.44.0" "1.45" "1.45.0" "1.46.1" "1.46.0" "1.46" "1.47" "1.47.0")
@@ -260,15 +261,17 @@ macro(find_flann)
 endmacro(find_flann)
 
 macro(find_VTK)
-  if(PCL_ALL_IN_ONE_INSTALLER)
+  if(PCL_ALL_IN_ONE_INSTALLER AND NOT ANDROID)
     set(VTK_DIR "${PCL_ROOT}/3rdParty/VTK/lib/vtk-5.8")
-  elseif(NOT VTK_DIR)
+  elseif(NOT VTK_DIR AND NOT ANDROID)
     set(VTK_DIR "@VTK_DIR@")
-  endif(PCL_ALL_IN_ONE_INSTALLER)
-  find_package(VTK ${QUIET_})
-  if (VTK_FOUND AND NOT ANDROID)
-    set(VTK_LIBRARIES vtkCommon vtkRendering vtkHybrid vtkCharts)
-  endif(VTK_FOUND AND NOT ANDROID)
+  endif(PCL_ALL_IN_ONE_INSTALLER AND NOT ANDROID)
+  if(NOT ANDROID)
+    find_package(VTK ${QUIET_})
+    if (VTK_FOUND)
+      set(VTK_LIBRARIES vtkCommon vtkRendering vtkHybrid vtkCharts)
+    endif(VTK_FOUND)
+  endif()
 endmacro(find_VTK)
 
 macro(find_libusb)
@@ -503,6 +506,14 @@ if(EXISTS "${PCL_ROOT}/include/pcl-${PCL_VERSION_MAJOR}.${PCL_VERSION_MINOR}/pcl
   if(EXISTS "${PCL_ROOT}/3rdParty")
     set(PCL_ALL_IN_ONE_INSTALLER ON)
   endif(EXISTS "${PCL_ROOT}/3rdParty")
+elseif(EXISTS "${PCL_ROOT}/include/pcl/pcl_config.h")
+  # Found a non-standard (likely ANDROID) PCL installation
+  # pcl_message("Found a PCL installation")
+  set(PCL_INCLUDE_DIRS "${PCL_ROOT}/include")
+  set(PCL_LIBRARY_DIRS "${PCL_ROOT}/lib")
+  if(EXISTS "${PCL_ROOT}/3rdParty")
+    set(PCL_ALL_IN_ONE_INSTALLER ON)
+  endif(EXISTS "${PCL_ROOT}/3rdParty")
 elseif(EXISTS "${PCL_DIR}/include/pcl/pcl_config.h")
   # Found PCLConfig.cmake in a build tree of PCL
   # pcl_message("PCL found into a build tree.")
@@ -528,7 +539,7 @@ list(LENGTH pcl_all_components PCL_NB_COMPONENTS)
 
 @PCLCONFIG_OPTIONAL_DEPENDENCIES@
 
-set(pcl_header_only_components 2d cuda_common geometry gpu_tracking modeler in_hand_scanner)
+set(pcl_header_only_components 2d cuda_common geometry gpu_tracking modeler in_hand_scanner point_cloud_editor cloud_composer optronic_viewer)
 
 include(FindPackageHandleStandardArgs)
 
@@ -610,6 +621,12 @@ foreach(component ${PCL_TO_FIND_COMPONENTS})
         PATH)
     endif(PCL_${COMPONENT}_LIBRARY_DEBUG)
 
+    # Restrict this to Windows users
+    if(NOT PCL_${COMPONENT}_LIBRARY AND WIN32)
+      # might be debug only
+      set(PCL_${COMPONENT}_LIBRARY ${PCL_${COMPONENT}_LIBRARY_DEBUG})
+    endif(NOT PCL_${COMPONENT}_LIBRARY AND WIN32)
+
     find_package_handle_standard_args(PCL_${COMPONENT} DEFAULT_MSG
       PCL_${COMPONENT}_LIBRARY PCL_${COMPONENT}_INCLUDE_DIR)
   else(_is_header_only EQUAL -1)
@@ -655,15 +672,6 @@ endif(NOT "${PCL_INCLUDE_DIRS}" STREQUAL "")
 if(NOT "${PCL_LIBRARY_DIRS}" STREQUAL "")
   list(REMOVE_DUPLICATES PCL_LIBRARY_DIRS)
 endif(NOT "${PCL_LIBRARY_DIRS}" STREQUAL "")
-
-# We need to export march=native for tutorials or user code
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-list (APPEND PCL_DEFINITIONS "@SSE_FLAGS@")
-endif()
-
-if(NOT MSVC)
-list (APPEND PCL_DEFINITIONS "-Wno-invalid-offsetof")
-endif(NOT MSVC)
 
 if(NOT "${PCL_DEFINITIONS}" STREQUAL "")
   list(REMOVE_DUPLICATES PCL_DEFINITIONS)

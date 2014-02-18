@@ -147,6 +147,27 @@ namespace pcl
         static Polygon *New();
         virtual bool Paint (vtkContext2D *painter);
       };
+
+      struct PCL_EXPORTS Text : public PCLContextItem
+      {
+        vtkTypeMacro (Text, PCLContextItem);
+        static Text *New ();
+        virtual bool Paint (vtkContext2D *painter);
+        virtual void set (float x, float y, const std::string& _text);
+        std::string text;
+      };
+
+      struct PCL_EXPORTS Markers : public Points
+      {
+        vtkTypeMacro (Markers, Points);
+        static Markers *New ();
+        virtual bool Paint (vtkContext2D *painter);
+        void setSize (float _size) { size = _size; }
+        void setPointColors (unsigned char r, unsigned char g, unsigned char b);
+        void setPointColors (unsigned char rgb[3]);
+        float size;
+        unsigned char point_colors[3];
+      };
     }
   }
 }
