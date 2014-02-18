@@ -41,6 +41,7 @@
 #define PCL_SEGMENTATION_IMPL_ORGANIZED_CONNECTED_COMPONENT_SEGMENTATION_H_
 
 #include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <set>
 
 /**
  *  Directions: 1 2 3
@@ -50,7 +51,7 @@
  */
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename PointT, typename PointLT> void
-pcl::OrganizedConnectedComponentSegmentation<PointT, PointLT>::findLabeledRegionBoundary (int start_idx, PointCloudLPtr labels, pcl::PointIndices& boundary_indices)
+pcl::OrganizedConnectedComponentSegmentation<PointT, PointLT>::findLabeledRegionBoundary (int start_idx, PointCloudLPtr labels, pcl::PointIndices& boundary_indices, bool allow_duplicates)
 {
   boundary_indices.indices.clear ();
   int curr_idx = start_idx;
@@ -88,7 +89,11 @@ pcl::OrganizedConnectedComponentSegmentation<PointT, PointLT>::findLabeledRegion
   // no connection to outer regions => start_idx is not on the border
   if (direction == -1)
     return;
-  
+
+  std::set<int> used_indices;
+  if (!allow_duplicates)
+    used_indices.insert (start_idx);
+
   boundary_indices.indices.push_back (start_idx);
   
   do {
@@ -109,7 +114,14 @@ pcl::OrganizedConnectedComponentSegmentation<PointT, PointLT>::findLabeledRegion
     curr_idx += directions [nIdx].d_index;
     curr_x   += directions [nIdx].d_x;
     curr_y   += directions [nIdx].d_y;
-    boundary_indices.indices.push_back(curr_idx);
+    
+    if (!allow_duplicates)
+    {
+      if (used_indices.insert (curr_idx).second)
+        boundary_indices.indices.push_back (curr_idx);
+    }
+    else
+      boundary_indices.indices.push_back(curr_idx);
   } while ( curr_idx != start_idx);
 }
 
