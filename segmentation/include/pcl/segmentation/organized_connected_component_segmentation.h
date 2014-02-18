@@ -121,9 +121,10 @@ namespace pcl
         * \param[in] start_idx the first (lowest) index of the connected component for which a boundary shoudl be returned
         * \param[in] labels the Label cloud produced by segmentation
         * \param[out] boundary_indices the indices of the boundary points for the label corresponding to start_idx
+        * \param[in] allow_duplicates whether or not duplicate points are allowed.
         */
       static void
-      findLabeledRegionBoundary (int start_idx, PointCloudLPtr labels, pcl::PointIndices& boundary_indices);      
+      findLabeledRegionBoundary (int start_idx, PointCloudLPtr labels, pcl::PointIndices& boundary_indices, bool allow_duplicates=true);      
       
 
     protected:
